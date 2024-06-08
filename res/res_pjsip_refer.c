@@ -1340,24 +1340,49 @@ static const struct ast_refer_tech refer_tech = {
 };
 
 static int refer_incoming_ari_request(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_sip_uri *target_uri,
-	struct refer_progress *progress)
+	pjsip_param *replaces_param, struct refer_progress *progress)
 {
+	int parsed_len;	
+	pj_str_t replaces_content;	
+	pjsip_replaces_hdr *replaces;
 	pjsip_generic_string_hdr *referred_by;
-	
+	RAII_VAR(struct ast_sip_session *, other_session, NULL, ao2_cleanup);
+					
+
 	static const pj_str_t str_referred_by = { "Referred-By", 11 };
 	static const pj_str_t str_referred_by_s = { "b", 1 };
-
+	static const pj_str_t str_replaces = { "Replaces", 8 };
 	
+	referred_by = pjsip_msg_find_hdr_by_names(rdata->msg_info.msg,
+		&str_referred_by, &str_referred_by_s, NULL);
+	if (referred_by) {
+	}
+
+	if (replaces_param) {
+		pjsip_dialog *dlg;	
+		pj_strdup_with_null(rdata->tp_info.pool, &replaces_content, &replaces_param->value);
+
+		/* Parsing the parameter as a Replaces header easily grabs the needed information */
+		if (!(replaces = pjsip_parse_hdr(rdata->tp_info.pool, &str_replaces, replaces_content.ptr,
+						 pj_strlen(&replaces_content), &parsed_len))) {
+			ast_log(LOG_ERROR, "Received REFER request on channel '%s' from endpoint '%s' with invalid Replaces header, rejecting\n",
+				ast_channel_name(session->channel), ast_sorcery_object_get_id(session->endpoint));
+			return 400;
+		}
+
+		dlg = pjsip_ua_find_dialog(&replaces->call_id, &replaces->to_tag, &replaces->from_tag, PJ_TRUE);
+		if (dlg) {
+			other_session = ast_sip_dialog_get_session(dlg);
+			pjsip_dlg_dec_lock(dlg);
+		}
+	} else {
+	}
+
 	if (ast_sip_session_defer_termination(session)) {
 		ast_log(LOG_ERROR, "Channel '%s' from endpoint '%s' attempted ari-only transfer but could not defer termination, rejecting\n",
 			ast_channel_name(session->channel),
 			ast_sorcery_object_get_id(session->endpoint));
 		return 500;
-	}
-
-	referred_by = pjsip_msg_find_hdr_by_names(rdata->msg_info.msg, &str_referred_by, &str_referred_by_s, NULL);
-	if (referred_by) {
-		ast_debug(3, "Received good\n"); 
 	}
 
 	return 200;
@@ -1735,12 +1760,16 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 		return 0;
 	}
 
+	replaces = pjsip_param_find(&target_uri->header_param, &str_replaces);
+	if (!replaces) {
+		replaces = pjsip_param_find(&target_uri->other_param, &str_replaces);
+	}
+
 	/* Determine if this is handled externally or an attended or blind transfer */
 	trans_hand = pbx_builtin_getvar_helper(session->channel, "TRANSFERHANDLING");
 	if (trans_hand && !strcmp(trans_hand, "ari-only")) {
-		response = refer_incoming_ari_request(session, rdata, target_uri, progress);
-	} else if ((replaces = pjsip_param_find(&target_uri->header_param, &str_replaces)) ||
-		(replaces = pjsip_param_find(&target_uri->other_param, &str_replaces))) {
+		response = refer_incoming_ari_request(session, rdata, target_uri, replaces, progress);
+	} else if (replaces) {
 		response = refer_incoming_attended_request(session, rdata, target_uri, replaces, progress);
 	} else {
 		response = refer_incoming_blind_request(session, rdata, target_uri, progress);
