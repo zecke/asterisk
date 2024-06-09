@@ -940,29 +940,16 @@
 			"id": "ReferTo",
 			"description": "transfer destination requested by transferee",
 			"properties": {
-				"requested-destination": {
-					"protocol-id": {
-						"required": false,
-						"type": "string",
-						"description": "the requested protocol-id by the referee in case of SIP channel, this is a SIP Call ID, Mutually exclusive to destination"
-					},
-					"destination": {
-						"required": false,
-						"type": "string",
-						"description": "Destination User Part. Only for Blind transfer. Mutually exclusive to protocol-id"
-					},
-					"additional-protocol-params": {
-						"required": false,
-						"type": "string",
-						"description": "List of additional protocol specific information"
-					}
+				"requested_destination": {
+					"required": true,
+					"type": "RequiredDestination"
 				},
-				"destination-channel": {
+				"destination_channel": {
 					"required": false,
 					"type": "Channel",
 					"description": "The Channel Object, that is to be replaced"
 				},
-				"connected-channel": {
+				"connected_channel": {
 					"required": false,
 					"type": "Channel",
 					"description": "Channel, connected to the to be replaced channel"
@@ -978,12 +965,12 @@
 			"id": "ReferredBy",
 			"description": "transfer destination requested by transferee",
 			"properties": {
-				"source-channel": {
+				"source_channel": {
 					"required": true,
 					"type": "Channel",
 					"description": "The channel on which the refer was received"
 				},
-				"connected-channel": {
+				"connected_channel": {
 					"required": false,
 					"type": "Channel",
 					"description": "Channel, Connected to the channel, receiving the transfer request on."
@@ -991,7 +978,28 @@
 				"bridge": {
 					"required": false,
 					"type": "Bridge",
-						"description": "Bridge connecting both Channels"
+					"description": "Bridge connecting both Channels"
+				}
+			}
+		},
+		"RequiredDestination": {
+			"id": "RequiredDestination",
+			"description": "Information about the requested destination",
+			"properties": {
+				"protocol_id": {
+					"required": false,
+					"type": "string",
+					"description": "the requested protocol-id by the referee in case of SIP channel, this is a SIP Call ID, Mutually exclusive to destination"
+				},
+				"destination": {
+					"required": false,
+					"type": "string",
+					"description": "Destination User Part. Only for Blind transfer. Mutually exclusive to protocol-id"
+				},
+				"additional_protocol_params": {
+					"required": false,
+					"type": "string",
+					"description": "List of additional protocol specific information"
 				}
 			}
 		}
