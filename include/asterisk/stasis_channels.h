@@ -657,6 +657,14 @@ struct stasis_message_type *ast_channel_talking_start(void);
 struct stasis_message_type *ast_channel_talking_stop(void);
 
 /*!
+ * \since 22
+ * \brief Message type for a attended or blind transfer request
+ *
+ * \ return A stasis message type
+ */
+struct stasis_message_type *ast_channel_transfer_request_type(void);
+
+/*!
  * \since 12
  * \brief Publish in the \ref ast_channel_topic or \ref ast_channel_topic_all
  * topics a stasis message for the channels involved in a dial operation.
@@ -748,6 +756,37 @@ int ast_channel_snapshot_caller_id_equal(
 int ast_channel_snapshot_connected_line_equal(
 	const struct ast_channel_snapshot *old_snapshot,
 	const struct ast_channel_snapshot *new_snapshot);
+
+
+/*!
+ * \since 22
+ * \brief Message published during an "ARI" transfer
+ */
+struct ast_ari_transfer_message {
+	/*! The channel receiving the transfer request */
+	struct ast_channel_snapshot *source;
+	/*! The bridge associated with the source channel */
+	struct ast_bridge_snapshot *source_bridge;
+	/*! The peer channel */
+	struct ast_channel_snapshot *source_peer;
+	/*! Referer identity */
+	char referred_by[4097];
+
+
+	/*! Destination extension */
+	char destination[AST_MAX_EXTENSION];
+	/*! Information for attended transfers */
+	char protocol_id[4097];
+	/*! The identified destination channel. */
+	struct ast_channel_snapshot *dest;
+	/*! The bridge associated with the channel. */
+	struct ast_bridge_snapshot *dest_bridge;
+	/*! The peer of the destination channel. */
+	struct ast_channel_snapshot *dest_peer;
+};
+
+
+struct ast_ari_transfer_message *ast_ari_transfer_message_create(struct ast_channel *originating_chan, const char *referred_by, const char *exten, const char *replace, struct ast_channel *dest);
 
 /*!
  * \brief Initialize the stasis channel topic and message types

@@ -994,7 +994,7 @@
 				"destination": {
 					"required": false,
 					"type": "string",
-					"description": "Destination User Part. Only for Blind transfer. Mutually exclusive to protocol-id"
+					"description": "Destination User Part. Only for Blind transfer. Mutually exclusive to protocol_id"
 				},
 				"additional_protocol_params": {
 					"required": false,

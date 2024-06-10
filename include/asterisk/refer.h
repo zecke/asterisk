@@ -37,6 +37,8 @@
 extern "C" {
 #endif
 
+struct ast_channel;
+
 /*!
  * \brief A refer structure.
  *
@@ -313,6 +315,16 @@ void ast_refer_var_iterator_destroy(struct ast_refer_var_iterator *iter);
  * \brief Unref a refer var from inside an iterator loop
  */
 void ast_refer_var_unref_current(struct ast_refer_var_iterator *iter);
+
+/*!
+ * \brief Notify a transfer request.
+ * \param originating_chan The channel that received the transfer request
+ * \param referred_by Information about the requesting identity
+ * \param exten The extension for blind transfers
+ * \param replace Technology specific replace indication
+ * \param dest The identified replace target for attended requests.
+ */
+int ast_refer_notify_transfer_request(struct ast_channel *originating_chan, const char *referred_by, const char *exten, const char *replace, struct ast_channel *dest);
 
 /*!
  *  @}

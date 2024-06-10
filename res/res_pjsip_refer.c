@@ -1339,23 +1339,35 @@ static const struct ast_refer_tech refer_tech = {
 	.refer_send = sip_refer_send,
 };
 
-static int refer_incoming_ari_request(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_sip_uri *target_uri,
+static int refer_incoming_ari_request(struct ast_sip_session *session, pjsip_rx_data *rdata, pjsip_sip_uri *target,
 	pjsip_param *replaces_param, struct refer_progress *progress)
 {
 	int parsed_len;	
-	pj_str_t replaces_content;	
+	pj_str_t replaces_content = { 0, };	
 	pjsip_replaces_hdr *replaces;
-	pjsip_generic_string_hdr *referred_by;
+	pjsip_generic_string_hdr *referred_hdr;
+	char exten[AST_MAX_EXTENSION] = { 0, };
+	char referred_by[4097] = { 0, };
 	RAII_VAR(struct ast_sip_session *, other_session, NULL, ao2_cleanup);
 					
 
 	static const pj_str_t str_referred_by = { "Referred-By", 11 };
 	static const pj_str_t str_referred_by_s = { "b", 1 };
 	static const pj_str_t str_replaces = { "Replaces", 8 };
+
+	/* Using the user portion of the target URI see if it exists as a valid extension in their context */
+	ast_copy_pj_str(exten, &target->user, sizeof(exten));
+
+	/*
+	 * We may want to match in the dialplan without any user
+	 * options getting in the way.
+	 */
+	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(exten);
 	
-	referred_by = pjsip_msg_find_hdr_by_names(rdata->msg_info.msg,
+	referred_hdr = pjsip_msg_find_hdr_by_names(rdata->msg_info.msg,
 		&str_referred_by, &str_referred_by_s, NULL);
-	if (referred_by) {
+	if (referred_hdr) {
+		ast_copy_pj_str(referred_by, &referred_hdr->hvalue, sizeof(referred_by));
 	}
 
 	if (replaces_param) {
@@ -1375,7 +1387,10 @@ static int refer_incoming_ari_request(struct ast_sip_session *session, pjsip_rx_
 			other_session = ast_sip_dialog_get_session(dlg);
 			pjsip_dlg_dec_lock(dlg);
 		}
-	} else {
+	}
+
+	if (ast_refer_notify_transfer_request(session->channel, referred_by, exten, replaces_content.ptr, other_session ? other_session->channel : NULL)) {
+		return 500;
 	}
 
 	if (ast_sip_session_defer_termination(session)) {
