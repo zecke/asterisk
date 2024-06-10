@@ -567,19 +567,21 @@ int ast_refer_notify_transfer_request(struct ast_channel *source, const char *re
 		ast_bridge_unlock(source_bridge);		
 	}
 
-	dest_bridge = ast_bridge_transfer_acquire_bridge(dest);
-	if (dest_bridge) {
-		RAII_VAR(struct ast_channel *, peer, NULL, ast_channel_cleanup);
+	if (dest) {
+		dest_bridge = ast_bridge_transfer_acquire_bridge(dest);
+		if (dest_bridge) {
+			RAII_VAR(struct ast_channel *, peer, NULL, ast_channel_cleanup);
 
-		ast_bridge_lock(dest_bridge);
-		transfer_message->dest_bridge = ast_bridge_snapshot_create(dest_bridge);
-		peer = ast_bridge_peer_nolock(dest_bridge, dest);
-		if (peer) {
-			ast_channel_lock(peer);
-			transfer_message->dest_peer = ast_channel_snapshot_get_latest(ast_channel_uniqueid(peer));
-			ast_channel_unlock(peer);
+			ast_bridge_lock(dest_bridge);
+			transfer_message->dest_bridge = ast_bridge_snapshot_create(dest_bridge);
+			peer = ast_bridge_peer_nolock(dest_bridge, dest);
+			if (peer) {
+				ast_channel_lock(peer);
+				transfer_message->dest_peer = ast_channel_snapshot_get_latest(ast_channel_uniqueid(peer));
+				ast_channel_unlock(peer);
+			}
+			ast_bridge_unlock(dest_bridge);
 		}
-		ast_bridge_unlock(dest_bridge);
 	}
 
 	msg = stasis_message_create(ast_channel_transfer_request_type(), transfer_message);

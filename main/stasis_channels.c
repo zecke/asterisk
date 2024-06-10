@@ -34,6 +34,7 @@
 #include "asterisk/json.h"
 #include "asterisk/pbx.h"
 #include "asterisk/bridge.h"
+#include "asterisk/stasis_bridges.h"
 #include "asterisk/translate.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_channels.h"
@@ -1616,10 +1617,70 @@ static struct ast_json *unhold_to_json(struct stasis_message *message,
 static struct ast_json *ari_transfer_to_json(struct stasis_message *msg,
 	const struct stasis_message_sanitizer *sanitize)
 {
+	struct ast_json *json_channel;
+	struct ast_json *refer_json, *referred_json, *dest_json;
+	const struct timeval *tv = stasis_message_timestamp(msg);
 	struct ast_ari_transfer_message *transfer_msg = stasis_message_data(msg);
-	if (transfer_msg) {
+
+	dest_json = ast_json_pack("{s: s, s: s}",
+		"protocol_id", transfer_msg->protocol_id,
+		"destination", transfer_msg->destination);
+	if (!dest_json) {
+		return NULL;
 	}
-	return NULL;
+
+	refer_json = ast_json_pack("{s: o}",
+		"requested_destination", dest_json);
+	if (!refer_json) {
+		return NULL;
+	}
+	if (transfer_msg->dest) {
+		struct ast_json *dest_chan_json;
+
+		dest_chan_json = ast_channel_snapshot_to_json(transfer_msg->dest, sanitize);
+		ast_json_object_set(refer_json, "destination_channel", dest_chan_json);
+	}
+	if (transfer_msg->dest_peer) {
+		struct ast_json *peer_chan_json;
+
+		peer_chan_json = ast_channel_snapshot_to_json(transfer_msg->dest_peer, sanitize);
+		ast_json_object_set(refer_json, "connected_channel", peer_chan_json);
+	}
+	if (transfer_msg->dest_bridge) {
+		struct ast_json *dest_bridge_json;
+
+		dest_bridge_json = ast_bridge_snapshot_to_json(transfer_msg->dest_bridge, sanitize);
+		ast_json_object_set(refer_json, "bridge", dest_bridge_json);
+	}
+
+	json_channel = ast_channel_snapshot_to_json(transfer_msg->source, sanitize);
+	if (!json_channel) {
+		return NULL;
+	}
+
+	referred_json = ast_json_pack("{s: o}",
+		"source_channel", json_channel);
+	if (!referred_json) {
+		return NULL;
+	}
+	if (transfer_msg->source_peer) {
+		struct ast_json *peer_chan_json;
+
+		peer_chan_json = ast_channel_snapshot_to_json(transfer_msg->source_peer, sanitize);
+		ast_json_object_set(refer_json, "connected_channel", peer_chan_json);
+	}
+	if (transfer_msg->source_bridge) {
+		struct ast_json *source_bridge_json;
+
+		source_bridge_json = ast_bridge_snapshot_to_json(transfer_msg->source_bridge, sanitize);
+		ast_json_object_set(refer_json, "bridge", source_bridge_json);
+	}
+
+	return ast_json_pack("{s: s, s: o, s: o, s: o}",
+		"type", "ChannelTransfer",
+		"timestamp", ast_json_timeval(*tv, NULL),
+		"refer_to", refer_json,
+		"referred_by", referred_json);
 }
 
 static void ari_transfer_dtor(void *obj)
